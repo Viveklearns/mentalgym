@@ -1,0 +1,13 @@
+# PDFs
+*.pdf
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.local
