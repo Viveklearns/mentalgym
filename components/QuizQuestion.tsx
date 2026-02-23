@@ -66,11 +66,11 @@ export default function QuizQuestion({
             }`}
           >
             <div className="flex items-start">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center mr-3 ${
+              <span className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center mr-3 ${
                 selectedAnswer === index
                   ? "border-blue-600 bg-blue-600 text-white"
                   : "border-gray-300 text-gray-500"
-              }">
+              }`}>
                 {String.fromCharCode(65 + index)}
               </span>
               <span className="flex-1 text-gray-900">{option}</span>
