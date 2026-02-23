@@ -189,7 +189,11 @@ Quiz content © 2025 Mental Gym. Framework concepts referenced from
 
 ### Feedback Approach
 - **No immediate feedback during quiz**
-- All answers and explanations shown only on Results page
+- Results page shows overall score and cluster breakdown immediately
+- Detailed question-by-question review available in expandable section on Results page
+  - Shows all 12 questions with user's answer vs correct answer
+  - Includes full explanations for both correct and incorrect answers
+  - Users can review at their own pace after seeing overall results
 - Keeps quiz flow fast (target 8-10 minutes)
 
 ---
@@ -645,6 +649,80 @@ skill gap. Even strong overall performers benefit from targeted
 practice in weak clusters. We recommend focusing here first.
 ```
 
+### Detailed Question Review (Expandable/Collapsible Section)
+
+**Placement:** After priority gap alert (if shown), before retake button
+
+**Initial State:** Collapsed
+
+**Toggle Button:**
+```
+[▼ View Detailed Breakdown - See Your Answers & Explanations]
+
+When expanded:
+[▲ Hide Detailed Breakdown]
+```
+
+**Content Structure:** All 12 questions displayed in original quiz order (Q1-Q12)
+
+**Per Question Display:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Question [N] of 12                                          │
+│ Framework: [Framework Name] • Cluster: [Cluster Name]      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ [Full question text from scenario]                         │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│ All Answer Options:                                        │
+│                                                             │
+│ A. [Option text]                                           │
+│    [No indicator if not selected and not correct]          │
+│                                                             │
+│ B. [Option text]  ✓ CORRECT ANSWER                        │
+│    [Green highlight if this is correct answer]             │
+│                                                             │
+│ C. [Option text]  ✗ YOUR ANSWER                           │
+│    [Red highlight if this was user's choice and wrong]     │
+│                                                             │
+│ D. [Option text]                                           │
+│    [No indicator if not selected and not correct]          │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│ EXPLANATION:                                                │
+│                                                             │
+│ [If user answered correctly:]                              │
+│ ✓ You got this right!                                      │
+│ [explanationCorrect text from question object]             │
+│                                                             │
+│ [If user answered incorrectly:]                            │
+│ ✗ Why this didn't work:                                    │
+│ [explanationWrong[userAnswerIndex] text]                   │
+│                                                             │
+│ ✓ Why the correct answer works:                            │
+│ [explanationCorrect text from question object]             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Visual Indicators:**
+- **Correct answer (user got it right):** Green border or background tint
+- **User's wrong answer:** Red/orange border or background tint
+- **Correct answer (when user was wrong):** Green border with checkmark
+- **Other options:** Neutral gray
+
+**Special Cases:**
+1. **User answered correctly:** Show green success indicator, show only correct explanation
+2. **User answered incorrectly:** Show both wrong explanation AND correct explanation
+3. **All 12 questions visible** when expanded (no pagination)
+
+**Implementation Notes:**
+- Use accordion/details element for expand/collapse
+- Smooth animation on toggle
+- Should work on mobile (touch-friendly)
+- Preserve expanded/collapsed state in component state (not localStorage)
+
 ### Retake Quiz Button (bottom of results)
 ```
 [Retake Quiz]
@@ -813,15 +891,15 @@ window.va('track', 'email_submitted', {
 
 **Morning (4 hours):**
 - Hour 9: Results page templates (all 4 score levels)
-- Hour 10: Email capture
-- Hour 11: Landing page structure
-- Hour 12: Landing page polish
+- Hour 10: Detailed question review component (expandable/collapsible)
+- Hour 11: Email capture
+- Hour 12: Landing page structure
 
 **Afternoon (4 hours):**
-- Hour 13: Edge cases & error handling
-- Hour 14: Analytics & final testing
-- Hour 15: Deploy to Vercel (4:00-4:30pm)
-- Hour 16: Final polish & prep for launch (4:30-6:00pm)
+- Hour 13: Landing page polish & edge cases
+- Hour 14: Error handling & analytics
+- Hour 15: Deploy to Vercel & final testing (4:00-5:00pm)
+- Hour 16: Final polish & prep for launch (5:00-6:00pm)
 
 **End of Day 2:** MVP deployed at mentalgym.vercel.app
 
@@ -836,11 +914,13 @@ window.va('track', 'email_submitted', {
 - Landing page
 - Email capture
 - Resume functionality
+- Detailed question review (expandable section)
 
 **Nice to Have:**
 - Polished copy/design
 - Full error handling
 - Analytics events
+- Smooth animations on expand/collapse
 
 ---
 
