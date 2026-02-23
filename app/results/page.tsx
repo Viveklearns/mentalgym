@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { loadQuizResults, clearQuizResults, clearQuizState } from "@/lib/storage";
 import { getClusterName } from "@/lib/scoring";
 import { QuizResults } from "@/types";
+import QuestionReview from "@/components/QuestionReview";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -180,6 +181,9 @@ export default function ResultsPage() {
             </ul>
           </div>
         </div>
+
+        {/* Detailed Question Review */}
+        <QuestionReview answers={results.answers} />
 
         {/* Email Capture */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
