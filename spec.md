@@ -1031,3 +1031,789 @@ This spec contains:
 - ✓ Deployment plan
 
 A developer can now build this in 2 days with zero ambiguity.
+
+---
+
+# PHASE 2: Voice Negotiation Coach
+
+## Product Vision
+
+An AI-powered voice roleplay coach that helps Product Managers practice negotiation frameworks from "Never Split the Difference" in realistic scenarios. Users engage in live voice conversations with an AI playing stakeholder roles (engineering managers, executives, etc.), then receive detailed feedback on their negotiation technique.
+
+## Core Value Proposition
+
+**Problem:** Reading about negotiation frameworks ≠ Using them under pressure. PMs know the concepts but freeze in real high-stakes conversations.
+
+**Solution:** Safe, private roleplay practice with immediate expert feedback. Build muscle memory for tactical empathy, calibrated questions, and other NSTD techniques.
+
+---
+
+## MVP Scope: Single-Scenario Voice Coach
+
+### What We're Building
+
+**Single Roleplay Scenario**
+- **Scenario**: "Negotiating timeline extension with engineering manager who is pushing back"
+- **User role**: Product Manager requesting 2 more weeks for feature X
+- **AI role**: Engineering Manager (skeptical, citing team burnout and other priorities)
+- **Duration**: 2-4 minute conversation
+- **Output**: Post-conversation analysis with framework detection and improvement suggestions
+
+### User Flow
+
+```
+Landing Page
+    ↓
+Scenario Selection (only 1 scenario for MVP)
+    ↓
+Pre-Conversation Brief
+  - Your role: PM
+  - AI role: Engineering Manager
+  - Context: Feature X timeline negotiation
+  - Goal: Get 2 more weeks without damaging relationship
+  - Reminder: Use NSTD frameworks
+  - [Start Conversation] button
+    ↓
+Voice Conversation Interface
+  - Push-to-talk button (hold to speak)
+  - Visual indicator when AI is speaking
+  - Conversation timer (counts up)
+  - [End Session Early] button
+  - Auto-ends after 4 minutes OR user ends it
+    ↓
+Processing Screen
+  - "Analyzing your conversation..."
+  - Claude analyzes full transcript for framework usage
+  - ~5-10 seconds
+    ↓
+Feedback & Results Page
+  - Full transcript (user + AI, timestamped)
+  - Framework Usage Detected
+  - Missed Opportunities
+  - What Worked Well
+  - 2-3 Specific Improvement Tips
+  - Overall Rating (Foundation/Practitioner/Advanced/Expert)
+  - [Try Again] [Try Another Scenario - Coming Soon]
+```
+
+---
+
+## Technical Architecture: Path A (ElevenLabs Conversational AI)
+
+### Why Path A for MVP
+- **Speed to market**: Can be built in 1 day vs 2-3 days for custom pipeline
+- **Native Claude support**: Claude Sonnet 4.5 available via dropdown, no proxy needed
+- **Handles complexity**: Turn-taking, interruptions, natural conversation flow built-in
+- **Cost-effective**: ~$0.10/min, free tier includes ~15 minutes for testing
+- **Production-ready**: WebRTC, analytics, tool calling all included
+
+### Tech Stack
+
+| Component | Choice | Justification |
+|-----------|---------|---------------|
+| **Framework** | Next.js 14 (App Router) | Already using for quiz app, full-stack in one project |
+| **Voice Platform** | ElevenLabs Conversational AI (ElevenAgents) | Native Claude support, managed STT/TTS/turn-taking |
+| **LLM** | Claude Sonnet 4.5 | Best balance of quality and speed for coaching feedback (~1.5s TTFT) |
+| **TTS Voice** | ElevenLabs voice library | 5,000+ options, choose professional/empathetic male voice for eng manager |
+| **Frontend Integration** | ElevenLabs React SDK (`@elevenlabs/react`) | `useConversation()` hook handles mic, audio, WebSocket/WebRTC |
+| **Storage** | localStorage | Save conversation transcripts for "Try Again" comparison (Phase 2) |
+| **Hosting** | Vercel | Same as quiz app, zero config deployment |
+
+### Environment Variables Needed
+```
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=<your_agent_id>
+ANTHROPIC_API_KEY=<your_key>  # For post-conversation analysis only
+```
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Next.js Frontend                         │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Voice Conversation Page                           │    │
+│  │  - useConversation() from @elevenlabs/react        │    │
+│  │  - Push-to-talk button                              │    │
+│  │  - Audio playback (AI responses)                    │    │
+│  │  - Transcript capture in real-time                  │    │
+│  └──────────────────┬─────────────────────────────────┘    │
+│                     │                                        │
+│                     │ WebSocket/WebRTC                       │
+│                     ↓                                        │
+│         ┌───────────────────────────────┐                   │
+│         │  ElevenLabs Conversational AI  │                  │
+│         │  (Managed Platform)            │                  │
+│         │  ┌─────────────────────────┐  │                  │
+│         │  │ STT (Scribe v2)         │  │                  │
+│         │  └──────────┬──────────────┘  │                  │
+│         │             ↓                  │                  │
+│         │  ┌─────────────────────────┐  │                  │
+│         │  │ Claude Sonnet 4.5        │  │                  │
+│         │  │ (Engineering Manager AI) │  │                  │
+│         │  └──────────┬──────────────┘  │                  │
+│         │             ↓                  │                  │
+│         │  ┌─────────────────────────┐  │                  │
+│         │  │ TTS (Flash v2.5)        │  │                  │
+│         │  └─────────────────────────┘  │                  │
+│         └───────────────────────────────┘                   │
+│                                                              │
+│  After conversation ends:                                   │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Backend API Route: /api/analyze-conversation      │    │
+│  │  - Receives full transcript                         │    │
+│  │  - Sends to Claude API (streaming)                  │    │
+│  │  - Analyzes framework usage, missed opportunities   │    │
+│  │  - Returns structured feedback                      │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ElevenLabs Agent Configuration
+
+### Agent Setup (via ElevenLabs Dashboard)
+
+**Agent Name:** Engineering Manager - Timeline Negotiation
+
+**System Prompt:**
+```
+You are a software engineering manager at a mid-sized tech company. Your name is Alex.
+You are speaking with a Product Manager who wants to extend the timeline for Feature X
+by 2 more weeks.
+
+YOUR CONTEXT:
+- Your team has been working hard and is showing signs of burnout
+- You have other priorities competing for engineering time
+- You're skeptical but not closed off - you can be persuaded if the PM uses good negotiation techniques
+- You value being heard and understood before discussing solutions
+
+YOUR PERSONALITY:
+- Direct but fair
+- Slightly skeptical at first
+- Appreciates tactical empathy and calibrated questions
+- Gets defensive if the PM dismisses your concerns
+- Softens when the PM uses labeling, mirroring, or shows genuine understanding
+
+YOUR CONVERSATIONAL STYLE:
+- Speak naturally, like a real person (use "um", "you know", casual language)
+- Keep responses concise (1-3 sentences at a time)
+- Show emotion: frustration, concern, thoughtfulness
+- If the PM uses good negotiation techniques (mirroring, labeling, calibrated questions),
+  respond more openly
+- If the PM argues or pushes without empathy, push back harder
+
+YOUR CONSTRAINTS:
+- You can be convinced, but only if the PM makes you feel heard first
+- You have a hard stop at 4 minutes (conversation will end automatically)
+- If the PM uses accusation audits well, you'll reveal hidden concerns (e.g., exec pressure)
+
+START THE CONVERSATION:
+Begin by expressing your initial pushback when the PM requests the timeline extension.
+Keep it brief (2 sentences max). Wait for their response.
+```
+
+**LLM Selection:** Claude Sonnet 4.5
+
+**Voice Selection:**
+- Search ElevenLabs voice library for professional, warm male voice
+- Suggestions: "Adam" (confident, clear) or "Charlie" (calm, thoughtful)
+- Test 2-3 options and pick one that sounds like a real engineering manager
+
+**First Message:** (Agent initiates conversation)
+```
+"Two more weeks? I don't know... the team is already stretched thin. We've got
+the Q2 platform work coming up and people are burnt out."
+```
+
+**Knowledge Base:** (Optional, not needed for MVP)
+
+**Conversation Config:**
+- **Max Duration:** 4 minutes
+- **Language:** English
+- **Turn-Taking Model:** Auto (managed by ElevenLabs)
+- **Interruption Handling:** Enabled
+
+---
+
+## Page-by-Page Specification
+
+### 1. Landing Page Addition
+
+**New Section (After Quiz CTA):**
+
+```
+─────────────────────────────────────────────────────────────
+🎙️ NEW: Practice With a Voice Coach (Beta)
+
+Reading about negotiation frameworks is step 1.
+Our diagnostic quiz is step 2.
+Step 3? Practice under pressure with an AI coach.
+
+[Try Voice Coaching - Beta →]
+─────────────────────────────────────────────────────────────
+```
+
+### 2. Voice Coach Landing Page (`/coach`)
+
+**URL:** `/coach`
+
+**Hero Section:**
+```
+Headline: Practice Negotiation. Get Expert Feedback.
+
+Subheadline: Real voice conversations. Real-time pressure.
+Safe environment to fail and improve.
+
+Body: You know the frameworks from Never Split the Difference.
+But can you use them when an engineering manager pushes back on your timeline?
+When an executive questions your roadmap? When a stakeholder goes silent?
+
+Practice makes permanent. Get feedback that helps you improve.
+
+CTA: [Start Your First Session →]
+Below CTA: 3-4 minutes • Voice only • Private & confidential
+```
+
+**How It Works:**
+```
+1. Choose Your Scenario
+   Pick a realistic PM negotiation situation
+
+2. Talk It Out
+   Have a real voice conversation with AI playing the stakeholder role
+
+3. Get Feedback
+   See which NSTD frameworks you used (and which you missed)
+```
+
+**Current Scenarios (MVP):**
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🗓️ Timeline Extension Negotiation                      │
+│                                                          │
+│ Stakeholder: Engineering Manager (Alex)                 │
+│ Difficulty: ⭐⭐ Intermediate                           │
+│ Frameworks tested: Tactical Empathy, Mirroring,        │
+│ Labeling, Calibrated Questions                          │
+│                                                          │
+│ You need 2 more weeks for Feature X. Alex says the     │
+│ team is burnt out and has competing priorities.         │
+│                                                          │
+│ [Start This Scenario →]                                 │
+└─────────────────────────────────────────────────────────┘
+
+More scenarios coming soon...
+```
+
+### 3. Pre-Conversation Brief Page (`/coach/scenarios/timeline-extension/brief`)
+
+**Scenario Context:**
+```
+Timeline Extension Negotiation
+
+YOUR ROLE: Product Manager
+STAKEHOLDER: Alex (Engineering Manager)
+
+SITUATION:
+You're building Feature X (new dashboard analytics). It's taking longer than
+expected due to data quality issues you discovered last week. You need 2 more
+weeks, but Alex's team is stretched thin and has Q2 platform work starting soon.
+
+YOUR GOAL:
+Get Alex to agree to the 2-week extension without damaging your relationship
+or team morale.
+
+FRAMEWORKS TO PRACTICE:
+✓ Tactical Empathy - Acknowledge Alex's concerns before making your case
+✓ Labeling - Name the emotions/concerns you're sensing
+✓ Mirroring - Repeat key words to encourage Alex to elaborate
+✓ Calibrated Questions - Use "How" and "What" questions
+✓ Accusation Audit - Preempt Alex's objections
+
+CONVERSATION TIPS:
+- Listen more than you talk in the first 60 seconds
+- Don't jump straight to your ask - make Alex feel heard first
+- Push-to-talk: Hold the button while speaking, release when done
+- The conversation will auto-end after 4 minutes
+
+[I'm Ready - Start Conversation]
+```
+
+### 4. Voice Conversation Page (`/coach/scenarios/timeline-extension/conversation`)
+
+**UI Layout:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Timeline Extension Negotiation                    2:34  │ ← Timer
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│           ┌─────────────────────────┐                   │
+│           │                         │                   │
+│           │    [Microphone Icon]    │                   │
+│           │                         │                   │
+│           │   Alex is speaking...   │ ← Status indicator
+│           │                         │
+│           └─────────────────────────┘                   │
+│                                                          │
+│                ┌───────────────┐                        │
+│                │  Push to Talk  │ ← Big button (hold)   │
+│                └───────────────┘                        │
+│                                                          │
+│                [End Session]                             │
+│                                                          │
+│  ─────────────────────────────────────────────────      │
+│  Transcript (live)                                       │
+│  Alex: "Two more weeks? The team is already stretched    │
+│         thin..."                                         │
+│  You: "Stretched thin..." [00:08]                        │
+│  Alex: "Yeah, we've got the Q2 platform work coming up   │
+│         and people are burnt out."                       │
+│  ...                                                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Component Behavior:**
+- **Push-to-Talk Button:**
+  - Default state: Blue, "Push to Talk"
+  - Pressed (user speaking): Red, "Recording..."
+  - AI speaking: Disabled, grayed out
+  - Mobile: Works with touch (tap and hold)
+
+- **Status Indicator:**
+  - "Alex is speaking..." (animated pulse)
+  - "Your turn..." (when AI finishes)
+  - "Recording..." (when user is speaking)
+
+- **Auto-End:**
+  - At 4:00, show modal: "Session complete! Analyzing your conversation..."
+  - Redirect to feedback page
+
+- **Early End:**
+  - User clicks "End Session"
+  - Confirm modal: "End session early? You can always try again."
+  - If yes: redirect to feedback page
+
+- **Transcript:**
+  - Live-updating as conversation progresses
+  - Scrollable
+  - Timestamps on each message
+  - Saved to localStorage for post-conversation analysis
+
+### 5. Processing Screen
+
+**Show for 5-10 seconds while Claude analyzes transcript**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│                  [Animated spinner]                      │
+│                                                          │
+│           Analyzing your conversation...                 │
+│                                                          │
+│  Detecting framework usage, missed opportunities,        │
+│  and areas for improvement.                              │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 6. Feedback & Results Page (`/coach/scenarios/timeline-extension/results`)
+
+**Page Structure:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Session Complete: Timeline Extension Negotiation        │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Your Overall Rating: PRACTITIONER ⭐⭐⭐              │
+│  Conversation Length: 3:42                               │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  📊 Framework Usage Detected                            │
+│                                                          │
+│  ✅ Mirroring (1:23) - "Stretched thin..."             │
+│     Good! This encouraged Alex to elaborate on team      │
+│     burnout. He revealed the Q2 platform pressure.       │
+│                                                          │
+│  ✅ Labeling (2:10) - "It sounds like you're worried   │
+│     about team morale..."                                │
+│     Excellent tactical empathy. Alex softened and        │
+│     started problem-solving with you.                    │
+│                                                          │
+│  ❌ Calibrated Questions - Not detected                 │
+│     You asked "Can we get 2 weeks?" (yes/no question).   │
+│     Try: "How can we make this work without burning      │
+│     out the team?"                                       │
+│                                                          │
+│  ❌ Accusation Audit - Not detected                     │
+│     You could've started with: "I know this is terrible  │
+│     timing with Q2 coming up and the team already        │
+│     stretched..."                                        │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  💡 What Worked Well                                    │
+│                                                          │
+│  • You let Alex speak first and listened for ~45         │
+│    seconds before making your case. Strong tactical      │
+│    empathy instinct.                                     │
+│                                                          │
+│  • Your labeling ("It sounds like you're worried...") │
+│    was authentic and accurate. Alex responded with       │
+│    "That's right" - the gold standard.                  │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  🎯 Missed Opportunities                                │
+│                                                          │
+│  • At 1:45, Alex said "I don't know how I'll explain    │
+│    this to the team." This was a Black Swan - a hidden   │
+│    constraint (fear of looking bad to his team). You     │
+│    didn't explore it. Try: "What's making this hard to  │
+│    explain?"                                             │
+│                                                          │
+│  • You jumped to solution mode at 2:30 without getting   │
+│    full buy-in first. Ask implementation questions:      │
+│    "What do we need to do to make this work?"           │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  🔧 2 Specific Improvements for Next Time               │
+│                                                          │
+│  1. Use calibrated questions instead of yes/no questions │
+│     Replace "Can we...?" with "How might we...?" or      │
+│     "What would need to happen for...?"                  │
+│                                                          │
+│  2. Listen for Black Swans (hidden constraints).         │
+│     When Alex said "I don't know how I'll explain this", │
+│     that's a signal. Explore it: "What concerns you most │
+│     about explaining it?"                                │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  📝 Full Transcript                                     │
+│  [Expandable/collapsible - same as live transcript]      │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  [Try This Scenario Again] [Try Another Scenario →]     │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Backend API: Conversation Analysis
+
+### Endpoint: `/api/analyze-conversation`
+
+**Method:** POST
+
+**Request Body:**
+```typescript
+{
+  transcript: Array<{
+    speaker: "user" | "ai",
+    text: string,
+    timestamp: string  // "00:23"
+  }>,
+  scenario: "timeline-extension"
+}
+```
+
+**Response:**
+```typescript
+{
+  overallRating: "foundation" | "practitioner" | "advanced" | "expert",
+  conversationLength: string,  // "3:42"
+  frameworksDetected: Array<{
+    framework: string,
+    timestamp: string,
+    quote: string,
+    feedback: string,
+    wasEffective: boolean
+  }>,
+  frameworksMissed: Array<{
+    framework: string,
+    explanation: string
+  }>,
+  whatWorkedWell: string[],
+  missedOpportunities: Array<{
+    timestamp: string,
+    whatHappened: string,
+    whatYouCouldHaveDone: string
+  }>,
+  topImprovements: string[]  // Max 3
+}
+```
+
+**Implementation:**
+```typescript
+// app/api/analyze-conversation/route.ts
+import Anthropic from '@anthropic-ai/sdk';
+
+export async function POST(req: Request) {
+  const { transcript, scenario } = await req.json();
+
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY
+  });
+
+  const analysisPrompt = `You are an expert negotiation coach analyzing a practice conversation.
+
+SCENARIO: Timeline Extension Negotiation
+The user (Product Manager) was trying to get 2 more weeks from Alex (Engineering Manager).
+
+TRANSCRIPT:
+${transcript.map(t => `[${t.timestamp}] ${t.speaker === 'user' ? 'PM' : 'Alex'}: ${t.text}`).join('\n')}
+
+Analyze the PM's negotiation technique based on frameworks from "Never Split the Difference" by Chris Voss.
+
+Provide your analysis in this JSON format:
+{
+  "overallRating": "foundation" | "practitioner" | "advanced" | "expert",
+  "frameworksDetected": [
+    {
+      "framework": "Mirroring",
+      "timestamp": "1:23",
+      "quote": "exact quote from PM",
+      "feedback": "why this worked or didn't work",
+      "wasEffective": true/false
+    }
+  ],
+  "frameworksMissed": [
+    {
+      "framework": "Calibrated Questions",
+      "explanation": "specific explanation of how they could've used it"
+    }
+  ],
+  "whatWorkedWell": ["bullet point 1", "bullet point 2"],
+  "missedOpportunities": [
+    {
+      "timestamp": "1:45",
+      "whatHappened": "Alex revealed a Black Swan",
+      "whatYouCouldHaveDone": "specific technique to use"
+    }
+  ],
+  "topImprovements": ["improvement 1", "improvement 2"]
+}
+
+Be specific, reference exact moments, and provide actionable feedback.`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 2000,
+    messages: [{
+      role: 'user',
+      content: analysisPrompt
+    }]
+  });
+
+  const analysis = JSON.parse(message.content[0].text);
+
+  return Response.json(analysis);
+}
+```
+
+---
+
+## Data Structures
+
+### Conversation Transcript (localStorage)
+
+```typescript
+interface ConversationTranscript {
+  scenario: string;
+  startTime: string;  // ISO timestamp
+  endTime: string;
+  duration: number;   // seconds
+  messages: Array<{
+    speaker: 'user' | 'ai';
+    text: string;
+    timestamp: string;  // "00:23" (MM:SS)
+  }>;
+}
+```
+
+### Conversation Analysis (localStorage + shown to user)
+
+```typescript
+interface ConversationAnalysis {
+  scenario: string;
+  conversationId: string;
+  overallRating: 'foundation' | 'practitioner' | 'advanced' | 'expert';
+  conversationLength: string;
+  frameworksDetected: Array<{
+    framework: string;
+    timestamp: string;
+    quote: string;
+    feedback: string;
+    wasEffective: boolean;
+  }>;
+  frameworksMissed: Array<{
+    framework: string;
+    explanation: string;
+  }>;
+  whatWorkedWell: string[];
+  missedOpportunities: Array<{
+    timestamp: string;
+    whatHappened: string;
+    whatYouCouldHaveDone: string;
+  }>;
+  topImprovements: string[];
+  analyzedAt: string;  // ISO timestamp
+}
+```
+
+---
+
+## Build Timeline: 1 Day (8 hours)
+
+### Hour 1-2: ElevenLabs Setup & Agent Configuration
+- [ ] Create ElevenLabs account
+- [ ] Configure agent: system prompt, voice selection, Claude Sonnet 4.5
+- [ ] Test agent in ElevenLabs dashboard
+- [ ] Get agent ID
+
+### Hour 3-4: Voice Conversation Page
+- [ ] Install `@elevenlabs/react` package
+- [ ] Create `/coach/scenarios/timeline-extension/conversation` page
+- [ ] Implement `useConversation()` hook
+- [ ] Build push-to-talk UI
+- [ ] Capture transcript in real-time
+- [ ] Save to localStorage
+
+### Hour 5-6: Feedback Backend & Analysis
+- [ ] Create `/api/analyze-conversation` route
+- [ ] Write Claude analysis prompt
+- [ ] Test with sample transcripts
+- [ ] Parse JSON response
+- [ ] Handle errors
+
+### Hour 7: Results Page
+- [ ] Create `/coach/scenarios/timeline-extension/results` page
+- [ ] Display analysis sections (frameworks detected, missed opportunities, etc.)
+- [ ] Expandable transcript section
+- [ ] "Try Again" button
+
+### Hour 8: Polish & Landing Pages
+- [ ] Create `/coach` landing page
+- [ ] Create `/coach/scenarios/timeline-extension/brief` page
+- [ ] Add link from main landing page to voice coach
+- [ ] Test end-to-end flow
+- [ ] Deploy to Vercel
+
+---
+
+## MVP Feature Checklist
+
+### Must Have (Launch Blockers)
+- [ ] ElevenLabs agent configured correctly (Engineering Manager persona)
+- [ ] Voice conversation works (push-to-talk, audio playback)
+- [ ] Transcript captured accurately
+- [ ] Post-conversation analysis works (detects frameworks, gives feedback)
+- [ ] Results page displays feedback clearly
+- [ ] One complete scenario: Timeline Extension
+
+### Should Have (Important but not blockers)
+- [ ] Pre-conversation brief page with context and tips
+- [ ] Voice coach landing page (`/coach`)
+- [ ] Link from main landing page to voice coach
+- [ ] "Try Again" button on results page
+- [ ] Conversation auto-ends at 4 minutes
+
+### Nice to Have (Phase 2)
+- [ ] Multiple scenarios (exec alignment, silent stakeholder, etc.)
+- [ ] Progress tracking across sessions ("You've improved 30% on Calibrated Questions")
+- [ ] Comparison: "This time vs last time"
+- [ ] Recording playback (listen to yourself)
+- [ ] Difficulty levels (beginner, intermediate, advanced)
+
+---
+
+## Out of Scope for MVP
+
+- ❌ User accounts / authentication (use localStorage only)
+- ❌ Payment / monetization
+- ❌ Multiple scenarios (only Timeline Extension)
+- ❌ Recording playback (can add in Phase 2)
+- ❌ Real-time feedback during conversation
+- ❌ Scenario customization (user creates their own scenario)
+- ❌ Mobile app (web only, but should work on mobile browsers)
+- ❌ Social sharing / leaderboards
+
+---
+
+## Cost Estimate (MVP Testing)
+
+- **ElevenLabs Free Tier**: ~15 minutes of agent conversation time
+- **Typical conversation**: 3-4 minutes
+- **Testing budget**: 3-4 full test conversations with free tier
+- **Post-MVP (paid)**: ~$0.10/minute = $0.30-0.40 per session
+
+**For 100 users doing 1 session each:**
+- Cost: ~$30-40 (ElevenLabs) + ~$5-10 (Claude API for analysis) = **~$40-50 total**
+
+**For 500 users:**
+- Cost: ~$200-250 (ElevenLabs) + ~$25-50 (Claude API) = **~$250-300 total**
+
+---
+
+## Success Metrics (2 Weeks Post-Launch)
+
+- **Adoption**: 20+ users try voice coach (from quiz → voice coach funnel)
+- **Completion Rate**: >60% finish full conversation (don't drop off early)
+- **Perceived Value**: NPS or simple feedback form "Was this helpful?" >70% yes
+- **Retention**: 30% of users try it 2+ times
+- **Qualitative**: 5+ pieces of positive feedback / testimonials
+
+---
+
+## Legal & Disclaimers (Same as Quiz)
+
+**All voice coach pages must include:**
+- Header disclaimer (independent tool, not affiliated with Chris Voss)
+- Footer disclaimer (full legal text)
+- System prompt for AI must NOT claim to be Chris Voss or official
+- Analysis feedback must reference "frameworks from the book" not "Chris Voss's frameworks"
+
+---
+
+## Phase 2 Ideas (Post-MVP)
+
+1. **More Scenarios**
+   - Executive alignment ("VP questions your roadmap strategy")
+   - Silent stakeholder ("Design lead stops responding to messages")
+   - Budget negotiation ("CFO wants to cut your team budget by 30%")
+
+2. **Progress Tracking**
+   - "You've done 5 sessions. Your Calibrated Questions usage has improved 40%"
+   - Historical analysis
+
+3. **Difficulty Levels**
+   - Beginner: Stakeholder is more agreeable, slower pace
+   - Advanced: Stakeholder is difficult, interrupts, uses deflection tactics
+
+4. **Custom Scenarios**
+   - User describes their real upcoming negotiation
+   - AI generates custom scenario and persona
+
+5. **Recording Playback**
+   - Listen to yourself to catch verbal tics, filler words, tone
+
+---
+
+## Ready to Build ✓
+
+**Voice Coach MVP Spec Contains:**
+- ✓ Clear product vision and MVP scope
+- ✓ Single scenario defined (Timeline Extension)
+- ✓ Complete user flow (brief → conversation → feedback)
+- ✓ Technical architecture (ElevenLabs + Claude)
+- ✓ ElevenLabs agent configuration (system prompt, voice, settings)
+- ✓ Page-by-page UI specifications
+- ✓ Backend API spec for conversation analysis
+- ✓ Data structures
+- ✓ 1-day build timeline (8 hours)
+- ✓ Must-have vs nice-to-have features
+- ✓ Cost estimates
+- ✓ Success metrics
+
+**Ready to build in parallel with existing quiz app. Zero ambiguity.**

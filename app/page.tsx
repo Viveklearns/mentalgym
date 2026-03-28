@@ -122,9 +122,9 @@ export default function Home() {
 
             <div className="text-center">
               <div className="text-4xl mb-3">💪</div>
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Practice & Master (Coming Soon)</h3>
+              <h3 className="font-bold text-lg text-gray-900 mb-2">Practice & Master</h3>
               <p className="text-gray-700">
-                Sharpen your skills with scenario-based practice matched to your role. Turn knowledge into instinct.
+                Sharpen your skills with scenario-based voice roleplay. Turn knowledge into instinct.
               </p>
             </div>
           </div>
@@ -213,6 +213,31 @@ export default function Home() {
           <p className="text-sm text-gray-500">
             No signup required • Results in 10 minutes • Built for PMs
           </p>
+        </div>
+      </section>
+
+      {/* Voice Coach CTA */}
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-12">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="text-4xl mb-4">🎙️</div>
+          <h2 className="text-2xl font-bold mb-3">
+            NEW: Practice With a Voice Coach (Beta)
+          </h2>
+          <p className="text-lg mb-2 text-blue-100">
+            Reading about negotiation frameworks is step 1.
+          </p>
+          <p className="text-lg mb-2 text-blue-100">
+            Our diagnostic quiz is step 2.
+          </p>
+          <p className="text-lg mb-6 text-blue-100">
+            Step 3? Practice under pressure with an AI coach.
+          </p>
+          <Link
+            href="/coach"
+            className="inline-block bg-white text-blue-600 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50 transition-colors"
+          >
+            Try Voice Coaching - Beta →
+          </Link>
         </div>
       </section>
 
